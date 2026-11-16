@@ -1,0 +1,27 @@
+# /etc/nginx/sites-available/php.asir.local
+# Web dinámica con PHP (PHP-FPM por socket Unix)
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name php.asir.local;
+    root /var/www/php;
+    index index.php index.html;
+
+    access_log /var/log/nginx/php_access.log;
+    error_log  /var/log/nginx/php_error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Todo lo que acabe en .php se pasa a PHP-FPM
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;              # incluye try_files $fastcgi_script_name =404
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;     # debe coincidir con "listen" de /etc/php/8.3/fpm/pool.d/www.conf
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}

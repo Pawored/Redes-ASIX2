@@ -1,0 +1,21 @@
+### Incidencia: fichero .php servido como descarga (site sin bloque location ~ \.php$)
+$ curl -sI http://web1.asir.local/test.php | grep Content-Type ; curl -s http://web1.asir.local/test.php
+Content-Type: application/octet-stream
+<?php echo "hola"; ?>
+
+### Incidencia: 403 en un directorio sin index
+$ curl -s -o /dev/null -w "%{http_code}\n" http://web2.asir.local/vacio/
+403
+2026/11/16 17:11:59 [error] 3029#3029: *29 directory index of "/var/www/web2/vacio/" is forbidden, client: 127.0.0.1, server: web2.asir.local, request: "GET /vacio/ HTTP/1.1", host: "web2.asir.local"
+
+### Incidencia: 500 por credenciales de BD incorrectas
+$ curl -s -w "\n%{http_code}\n" http://app.asir.local/
+<h1>Error de conexión con la base de datos</h1>
+500
+2026/11/16 17:11:59 [error] 3029#3029: *30 FastCGI sent in stderr: "PHP message: Error BD: SQLSTATE[HY000] [1045] Access denied for user 'agenda_user'@'localhost' (using password: YES)" while reading response header from upstream, client: 127.0.0.1, server: app.asir.local, request: "GET / HTTP/1.1", upstream: "fastcgi://unix:/run/php/php8.3-fpm.sock:", host: "app.asir.local"
+
+### Incidencia: error de sintaxis en la configuración (falta un ;)
+$ sudo nginx -t
+2026/11/16 17:11:59 [emerg] 3325#3325: invalid number of arguments in "root" directive in /etc/nginx/sites-enabled/web2.asir.local:8
+nginx: configuration file /etc/nginx/nginx.conf test failed
+nginx: configuration file /etc/nginx/nginx.conf test is successful

@@ -1,0 +1,31 @@
+# /etc/nginx/sites-available/app.asir.local
+# Web PHP + MySQL (MariaDB)
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name app.asir.local;
+    root /var/www/app;
+    index index.php;
+
+    access_log /var/log/nginx/app_access.log;
+    error_log  /var/log/nginx/app_error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # El fichero de configuración con la contraseña de la BD nunca se sirve
+    location = /config.php {
+        deny all;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+    }
+
+    location ~ /\. {
+        deny all;
+    }
+}

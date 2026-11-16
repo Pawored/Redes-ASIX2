@@ -1,0 +1,9 @@
+# /etc/nginx/sites-available/default  (opcional, recomendado)
+# Server por defecto: responde a peticiones cuyo Host no coincide con ningún server_name
+# (por ejemplo, si acceden por IP). Así no se muestra "por accidente" web1.
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    return 444;   # Nginx cierra la conexión sin responder
+}

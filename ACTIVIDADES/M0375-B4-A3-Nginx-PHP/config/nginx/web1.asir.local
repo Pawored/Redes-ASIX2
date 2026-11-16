@@ -1,0 +1,29 @@
+# /etc/nginx/sites-available/web1.asir.local
+# Web estática 1 + zona protegida con autenticación básica
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name web1.asir.local;
+    root /var/www/web1;
+    index index.html;
+
+    access_log /var/log/nginx/web1_access.log;
+    error_log  /var/log/nginx/web1_error.log;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Zona protegida: pide usuario/contraseña (HTTP Basic Auth)
+    location /privado/ {
+        auth_basic           "Zona restringida - ASIR";
+        auth_basic_user_file /etc/nginx/.htpasswd;
+        try_files $uri $uri/ =404;
+    }
+
+    # No servir ficheros ocultos (.htpasswd, .git, etc.)
+    location ~ /\. {
+        deny all;
+    }
+}

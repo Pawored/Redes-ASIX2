@@ -1,0 +1,55 @@
+### 1. Dos webs estáticas, misma IP y puerto 80
+$ curl -s http://web1.asir.local/ | grep "<h1>"
+    <h1>Web estática 1</h1>
+$ curl -s http://web2.asir.local/ | grep "<h1>"
+    <h1>Web estática 2</h1>
+$ curl -s -H "Host: web2.asir.local" http://127.0.0.1/ | grep "<h1>"   # misma IP, cambia solo la cabecera Host
+    <h1>Web estática 2</h1>
+$ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1/   # acceso por IP -> default_server
+000
+(000 = conexión cerrada por 'return 444')
+
+### 2. Zona protegida
+$ curl -sI http://web1.asir.local/privado/
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Basic realm="Zona restringida - ASIR"
+$ curl -s -o /dev/null -w "%{http_code}\n" -u alumno:malapass http://web1.asir.local/privado/
+401
+$ curl -s -u alumno:Asir2026 http://web1.asir.local/privado/ | grep "<h1>"
+  <h1>Zona protegida</h1>
+$ curl -s -o /dev/null -w "%{http_code}\n" http://web1.asir.local/.htpasswd
+403
+
+### 3. Web PHP
+$ curl -s "http://php.asir.local/?nombre=ASIR" | grep -E "<h1>|<li>"
+  <h1>Hola, ASIR</h1>
+    <li>Fecha y hora del servidor: 16/11/2026 16:11:46</li>
+    <li>Versión de PHP: 8.3.6</li>
+    <li>Servidor web: nginx/1.24.0</li>
+    <li>Interfaz (SAPI): fpm-fcgi</li>
+    <li>Tu IP: 127.0.0.1</li>
+$ curl -s "http://php.asir.local/?nombre=<script>alert(1)</script>" | grep "<h1>"   # XSS neutralizado
+  <h1>Hola, &lt;script&gt;alert(1)&lt;/script&gt;</h1>
+$ curl -s http://php.asir.local/info.php | grep -o "<title>.*</title>"
+<title>PHP 8.3.6 - phpinfo()</title>
+$ curl -s -o /dev/null -w "%{http_code}\n" http://php.asir.local/noexiste.php
+404
+
+### 4. Web PHP + MySQL
+$ curl -s http://app.asir.local/ | grep -E "conectado|<td>[0-9]+</td>"
+  <p>PHP 8.3.6 conectado a 10.11.14-MariaDB-0ubuntu0.24.04.1 (BD <code>agenda</code>)</p>
+(se listan los 3 contactos iniciales)
+$ curl -s -X POST -d "accion=alta&nombre=Pruebas Curl&email=curl@asir.local&telefono=600999000" http://app.asir.local/ | grep -E "msg|Pruebas"
+  <p class="msg">Contacto añadido.</p>
+      <td>Pruebas Curl</td>
+$ curl -s -X POST -d "accion=alta&nombre=x' OR '1'='1&email=sqli@asir.local" ...   # intento de inyección SQL: se guarda como texto
+      <td>x&#039; OR &#039;1&#039;=&#039;1</td>
+$ mariadb -e "SELECT id,nombre,email FROM agenda.contactos"
+id	nombre	email
+1	Ana García	ana@asir.local
+2	Luis Pérez	luis@asir.local
+3	Marta López	marta@asir.local
+4	Pruebas Curl	curl@asir.local
+5	x' OR '1'='1	sqli@asir.local
+$ curl -s -o /dev/null -w "%{http_code}\n" http://app.asir.local/config.php   # credenciales protegidas
+403

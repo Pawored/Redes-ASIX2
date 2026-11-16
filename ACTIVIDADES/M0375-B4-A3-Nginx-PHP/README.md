@@ -2,7 +2,7 @@
 
 **Módulo 0375 – Servicios en Red · Tema B4 · CFGS ASIR**
 
-Alumno: _(tu nombre)_
+Alumno: Pau Bonet
 
 Esta documentación recoge la parte práctica y la parte escrita de la práctica de NGINX:
 

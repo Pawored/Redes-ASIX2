@@ -1,7 +1,5 @@
 # AppArmor – Confinar Nginx
 
-**Módulo 0378 – Seguridad y Alta Disponibilidad · CFGS ASIR**
-
 Alumno: Pau Bonet
 
 ## Objetivo

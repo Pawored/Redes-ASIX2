@@ -1,4 +1,4 @@
-# Wireshark – Amenazas y ataques
+# Wireshark – Amenazas y ataques (tutoriales de Palo Alto Networks · Unit 42)
 
 **Módulo 0378 – Seguridad y Alta Disponibilidad · Actividad M0378T1A1 · CFGS ASIR**
 

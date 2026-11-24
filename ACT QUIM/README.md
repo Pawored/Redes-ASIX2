@@ -8,15 +8,14 @@ Nginx queda confinado con un perfil de AppArmor creado en modo complain y aplica
 
 1. [Objetivo](#objetivo)
 2. [Entorno](#entorno)
-3. [Lo que tienes que hacer](#lo-que-tienes-que-hacer)
-4. [Paso 1. Configuración inicial de Nginx](#paso-1-configuración-inicial-de-nginx)
-5. [Paso 2. Creación y ajuste del perfil con aa-genprof](#paso-2-creación-y-ajuste-del-perfil-con-aa-genprof)
-6. [Paso 3. Modo complain: evidencias de los registros](#paso-3-modo-complain-evidencias-de-los-registros)
-7. [Paso 4. Perfil final en modo enforce](#paso-4-perfil-final-en-modo-enforce)
-8. [Paso 5. Comprobación con el perfil en enforce](#paso-5-comprobación-con-el-perfil-en-enforce)
-9. [Diferencias entre los modos complain y enforce](#diferencias-entre-los-modos-complain-y-enforce)
-10. [Reflexión](#reflexión-qué-accesos-fue-necesario-permitir-y-por-qué)
-11. [Anexos](#anexos)
+3. [Paso 1. Configuración inicial de Nginx](#paso-1-configuración-inicial-de-nginx)
+4. [Paso 2. Creación y ajuste del perfil con aa-genprof](#paso-2-creación-y-ajuste-del-perfil-con-aa-genprof)
+5. [Paso 3. Modo complain: evidencias de los registros](#paso-3-modo-complain-evidencias-de-los-registros)
+6. [Paso 4. Perfil final en modo enforce](#paso-4-perfil-final-en-modo-enforce)
+7. [Paso 5. Comprobación con el perfil en enforce](#paso-5-comprobación-con-el-perfil-en-enforce)
+8. [Diferencias entre los modos complain y enforce](#diferencias-entre-los-modos-complain-y-enforce)
+9. [Reflexión](#reflexión-qué-accesos-fue-necesario-permitir-y-por-qué)
+10. [Anexos](#anexos)
 
 ## Objetivo
 
@@ -51,39 +50,6 @@ Nginx queda confinado con un perfil de AppArmor creado en modo complain y aplica
 | `sudo aa-status` | Perfiles cargados y su modo |
 | `sudo journalctl -k \| grep apparmor` | Ver los eventos de AppArmor |
 
-## Lo que tienes que hacer
-
-Todo se hace en la VM de Ubuntu. Sigue los pasos 1 a 5 en orden y, en cada hueco marcado como **CAPTURA**, añade la imagen justo debajo.
-
-- [ ] Paso 1: instalar Nginx, crear la web y el sitio, comprobar que `/` y `/fuera/` dan 200 (capturas 1 y 2)
-- [ ] Paso 2: crear el perfil con `aa-genprof`, usar Nginx y escanear los registros (capturas 3, 4 y 5)
-- [ ] Paso 2.4: segunda pasada con `aa-logprof` hasta que no pregunte nada
-- [ ] Paso 2.5: copiar el perfil final y recargarlo
-- [ ] Paso 3: sacar los eventos ALLOWED del modo complain (capturas 6 y 7)
-- [ ] Paso 4: `aa-enforce` y reiniciar Nginx (captura 8)
-- [ ] Paso 5: comprobar 200, 404 y 403 + DENIED (capturas 9, 10 y 11)
-
-### Cómo añadir las capturas en GitHub
-
-1. Haz la captura: en la VM con la herramienta de capturas de Ubuntu (tecla Impr Pant) o en Windows con Win+Shift+S.
-2. En GitHub, abre este `README.md` y pulsa el lápiz (**Edit this file**).
-3. Ve al hueco **CAPTURA** que toca y arrastra la imagen (o pégala con Ctrl+V) en la línea de debajo. GitHub la sube y escribe solo el enlace `![image](...)`.
-4. Al terminar, pulsa **Commit changes**.
-
-| Nº | Paso | Qué tiene que verse |
-| --- | --- | --- |
-| 1 | 1.5 | Terminal: `ps auxZ \| grep nginx` con los procesos en `unconfined` |
-| 2 | 1.5 | Navegador de Windows en `http://apparmor.asir.local/` mostrando la web, y `curl` de `/fuera/` con 200 |
-| 3 | 2.1 | Terminal 1: `aa-genprof` esperando, con el texto “(S)can system log” |
-| 4 | 2.2 | Terminal 2: `ps auxZ` con los procesos en `(complain)` |
-| 5 | 2.3 | Una pregunta de `aa-genprof` (por ejemplo `capability net_bind_service` o el Glob de `/etc/nginx/**`) |
-| 6 | 3.1 | `aa-status` con `/usr/sbin/nginx` en “complain mode” |
-| 7 | 3.3 | Eventos `apparmor="ALLOWED"` de Nginx en `journalctl -k` y el resumen por tipo |
-| 8 | 4.1 | `aa-enforce` + `ps auxZ` con los procesos en `(enforce)` |
-| 9 | 5.1 | `curl -i` a `/` con 200 OK y “Sin denegaciones” |
-| 10 | 5.1 | Navegador de Windows mostrando la web con el perfil en enforce |
-| 11 | 5.2 | `curl -i` a `/fuera/` con 403 y la línea `apparmor="DENIED"` de `/srv/fuera/index.html` |
-
 ## Paso 1. Configuración inicial de Nginx
 
 Al acabar este paso, Nginx sirve la web de prueba y, sin AppArmor, también puede leer `/srv/fuera`.
@@ -117,14 +83,14 @@ sudo mkdir -p /var/www/apparmor
 sudo nano /var/www/apparmor/index.html
 ```
 
-Pega el contenido del [Anexo B](#anexo-b-web-de-prueba) y guarda. Después:
+Su contenido está en el [Anexo B](#anexo-b-web-de-prueba). Después se ajustan propietario y permisos:
 
 ```bash
 sudo chown -R root:root /var/www/apparmor
 sudo chmod -R 755 /var/www/apparmor
 ```
 
-Crea también un directorio que **no** estará en el perfil, para demostrar el bloqueo al final:
+Se crea también un directorio que **no** estará en el perfil, para demostrar el bloqueo al final:
 
 ```bash
 sudo mkdir -p /srv/fuera
@@ -137,7 +103,7 @@ echo "<h1>Esto NO deberia verse en modo enforce</h1>" | sudo tee /srv/fuera/inde
 sudo nano /etc/nginx/sites-available/apparmor.asir.local
 ```
 
-Pega el contenido del [Anexo A](#anexo-a-server-block) y guarda.
+Su contenido está en el [Anexo A](#anexo-a-server-block).
 
 | Directiva | Valor | Para qué |
 | --- | --- | --- |
@@ -160,7 +126,7 @@ En la VM:
 echo "127.0.0.1 apparmor.asir.local" | sudo tee -a /etc/hosts
 ```
 
-En Windows, abre el Bloc de notas como administrador y añade a `C:\Windows\System32\drivers\etc\hosts`:
+En Windows (anfitrión), en `C:\Windows\System32\drivers\etc\hosts`:
 
 ```
 192.168.88.128  apparmor.asir.local
@@ -174,19 +140,19 @@ curl -i http://apparmor.asir.local/
 curl -s -o /dev/null -w '%{http_code}\n' http://apparmor.asir.local/fuera/
 ```
 
-Resultado esperado: los procesos salen como `unconfined`, la web devuelve `HTTP/1.1 200 OK` y `/fuera/` también da `200`. Sin AppArmor, Nginx puede leer cualquier fichero que le permitan los permisos Unix.
+Resultado: los procesos salen como `unconfined`, la web devuelve `HTTP/1.1 200 OK` y `/fuera/` también da `200`. Sin AppArmor, Nginx puede leer cualquier fichero que le permitan los permisos Unix.
 
-> **CAPTURA 1 —** `ps auxZ | grep nginx` con los procesos en `unconfined`.
+**Captura 1.** `ps auxZ | grep nginx` con los procesos en `unconfined`.
 
 
 
-> **CAPTURA 2 —** Navegador de Windows en `http://apparmor.asir.local/` mostrando la web, y el `curl` de `/fuera/` con `200`.
+**Captura 2.** Navegador de Windows en `http://apparmor.asir.local/` mostrando la web, y el `curl` de `/fuera/` con `200`.
 
 
 
 ## Paso 2. Creación y ajuste del perfil con aa-genprof
 
-`aa-genprof` crea un perfil casi vacío para Nginx, lo carga en modo complain y después lee los registros para proponer reglas. Necesitas **dos terminales** abiertas en la VM.
+`aa-genprof` crea un perfil casi vacío para Nginx, lo carga en modo complain y después lee los registros para proponer reglas. Se usan **dos terminales** en la VM.
 
 ### 2.1 Terminal 1: lanzar aa-genprof
 
@@ -194,7 +160,7 @@ Resultado esperado: los procesos salen como `unconfined`, la web devuelve `HTTP/
 sudo aa-genprof /usr/sbin/nginx
 ```
 
-Salida esperada (resumida):
+Salida (resumida):
 
 ```
 Writing updated profile for /usr/sbin/nginx.
@@ -208,15 +174,15 @@ another window and exercise its functionality now.
 [(S)can system log for AppArmor events] / (F)inish
 ```
 
-Ya existe `/etc/apparmor.d/usr.sbin.nginx` con un perfil mínimo y `flags=(complain)`. **No pulses nada todavía.**
+Ya existe `/etc/apparmor.d/usr.sbin.nginx` con un perfil mínimo y `flags=(complain)`. En este punto todavía no se pulsa nada.
 
-> **CAPTURA 3 —** Terminal 1 con `aa-genprof` esperando y el texto “(S)can system log for AppArmor events”.
+**Captura 3.** Terminal 1 con `aa-genprof` esperando y el texto “(S)can system log for AppArmor events”.
 
 
 
 ### 2.2 Terminal 2: usar Nginx (fase de aprendizaje)
 
-Un perfil solo se aplica a los procesos que arrancan después de cargarlo, así que primero reinicia Nginx:
+Un perfil solo se aplica a los procesos que arrancan después de cargarlo, así que primero se reinicia Nginx:
 
 ```bash
 sudo systemctl restart nginx
@@ -225,11 +191,11 @@ ps auxZ | grep [n]ginx
 
 Ahora los procesos salen como `/usr/sbin/nginx (complain)`.
 
-> **CAPTURA 4 —** Terminal 2 con `ps auxZ` y los procesos en `(complain)`.
+**Captura 4.** Terminal 2 con `ps auxZ` y los procesos en `(complain)`.
 
 
 
-Ejercita todo lo que hará Nginx en producción, para que quede registrado:
+Después se ejercitan todas las funciones que Nginx usará en producción, para que queden registradas:
 
 ```bash
 sudo nginx -t                                   # test de configuración
@@ -241,16 +207,16 @@ sudo nginx -s reopen                            # reabrir logs (señal USR1, la 
 sudo systemctl restart nginx                    # parar y arrancar
 ```
 
-**No visites `/fuera/` durante el aprendizaje.** Lo que no se use ahora no entra en el perfil, y así después se podrá comprobar el bloqueo.
+Durante el aprendizaje **no** se visita `/fuera/`: lo que no se usa en esta fase no entra en el perfil, y así después se puede comprobar el bloqueo.
 
 ### 2.3 Terminal 1: escanear los registros
 
-Vuelve a la terminal 1 y pulsa **S**. `aa-genprof` va mostrando cada acceso y pregunta qué hacer. Responde así:
+En la terminal 1 se pulsa **S**. `aa-genprof` muestra cada acceso registrado y pregunta qué hacer. Respuestas dadas:
 
-| Lo que pregunta | Ejemplo | Qué pulsar |
+| Tipo de acceso | Ejemplo | Respuesta |
 | --- | --- | --- |
 | Capacidad | `capability net_bind_service` (también `setuid`, `setgid`, `chown`, `dac_override`, `kill`) | **A** (Allow) |
-| Fichero con abstracción | `/etc/nsswitch.conf` → opción `include <abstractions/nameservice>` | Elegir la opción del `include` y **A** |
+| Fichero con abstracción | `/etc/nsswitch.conf` → opción `include <abstractions/nameservice>` | Opción del `include` y **A** |
 | Configuración | `/etc/nginx/sites-enabled/apparmor.asir.local r` | **G** (Glob) hasta que quede `/etc/nginx/** r,` y **A** |
 | Web | `/var/www/apparmor/index.html r` | **G** hasta `/var/www/apparmor/** r,` y **A** |
 | Logs | `/var/log/nginx/apparmor.access.log w` | **G** hasta `/var/log/nginx/*.log w,` y **A** |
@@ -269,33 +235,33 @@ Severity:   8
 (A)llow / [(D)eny] / (I)gnore / Audi(t) / Abo(r)t / (F)inish
 ```
 
-Al terminar la ronda aparece “Changed Local Profiles”: pulsa **S** (Save Changes) y después **F** para salir.
+Al terminar la ronda aparece “Changed Local Profiles”: se guarda con **S** (Save Changes) y se sale con **F**.
 
-> **CAPTURA 5 —** Una de las preguntas de `aa-genprof` (por ejemplo `capability net_bind_service` o el Glob de `/etc/nginx/**`).
+**Captura 5.** Pregunta de `aa-genprof` durante el escaneo de los registros.
 
 
 
 ### 2.4 Segunda pasada con aa-logprof
 
-Repite los comandos del punto 2.2 y ejecuta:
+Se repiten los comandos del punto 2.2 y se ejecuta:
 
 ```bash
 sudo aa-logprof
 ```
 
-`aa-logprof` hace lo mismo que el escaneo de `aa-genprof`, pero solo pregunta por los eventos **nuevos**. Repítelo hasta que no haga ninguna pregunta: eso significa que el perfil ya cubre todo lo que hace Nginx.
+`aa-logprof` hace lo mismo que el escaneo de `aa-genprof`, pero solo pregunta por los eventos **nuevos**. Se repite hasta que no hace ninguna pregunta, lo que indica que el perfil ya cubre todo lo que hace Nginx.
 
-Si dice que no encuentra registros, instala un sistema de logs y vuelve al paso 2.2: `sudo apt install rsyslog`.
+`aa-logprof` lee `/var/log/syslog` o `/var/log/audit/audit.log`; si el sistema no tiene ninguno de los dos, hay que instalar `rsyslog` (`sudo apt install rsyslog`).
 
 ### 2.5 Ajustes a mano
 
-Abre el perfil y sustitúyelo por la versión limpia y comentada del [Paso 4.2](#42-perfil-final):
+Por último se edita el perfil para dejarlo limpio y comentado (versión final en el [Paso 4.2](#42-perfil-final)):
 
 ```bash
 sudo nano /etc/apparmor.d/usr.sbin.nginx
 ```
 
-Para seguir en modo complain mientras pruebas, deja la cabecera como `/usr/sbin/nginx flags=(complain) {`. Luego recarga y comprueba:
+Mientras sigue en pruebas, la cabecera conserva `/usr/sbin/nginx flags=(complain) {`. Se recarga y se comprueba:
 
 ```bash
 sudo apparmor_parser -r /etc/apparmor.d/usr.sbin.nginx
@@ -325,7 +291,7 @@ ps auxZ | grep [n]ginx
 
 En `aa-status` debe salir `/usr/sbin/nginx` bajo “profiles are in complain mode”, y los procesos de Nginx bajo “processes are in complain mode”.
 
-> **CAPTURA 6 —** `aa-status` con `/usr/sbin/nginx` en “complain mode”.
+**Captura 6.** `aa-status` con `/usr/sbin/nginx` en “complain mode”.
 
 
 
@@ -352,7 +318,7 @@ sudo journalctl -k --no-pager | grep 'profile="/usr/sbin/nginx"' \
   | grep -oE 'operation="[^"]+"|capname="[^"]+"' | sort | uniq -c | sort -rn
 ```
 
-Así es cada tipo de evento (los valores de `pid`, `audit(...)` y la fecha cambian en cada máquina):
+Ejemplos de cada tipo de evento registrado (sin los campos de fecha, `audit(...)` y `pid`):
 
 ```
 # Lectura de configuración (maestro, fsuid=0 = root)
@@ -383,7 +349,7 @@ apparmor="ALLOWED" operation="signal" class="signal" profile="/usr/sbin/nginx" c
 | `fsuid` | UID con el que accede: 0 = root (maestro), 33 = www-data (worker) |
 | `capname` | Capacidad de Linux solicitada |
 
-> **CAPTURA 7 —** Terminal con los eventos `apparmor="ALLOWED"` de Nginx y el resumen por tipo.
+**Captura 7.** Terminal con los eventos `apparmor="ALLOWED"` de Nginx y el resumen por tipo.
 
 
 
@@ -400,7 +366,7 @@ ps auxZ | grep [n]ginx
 
 `aa-enforce` quita `flags=(complain)` de la cabecera del perfil y lo recarga. Tras reiniciar, los procesos salen como `/usr/sbin/nginx (enforce)`.
 
-> **CAPTURA 8 —** Salida de `aa-enforce` y `ps auxZ` con los procesos en `(enforce)`.
+**Captura 8.** Salida de `aa-enforce` y `ps auxZ` con los procesos en `(enforce)`.
 
 
 
@@ -470,7 +436,7 @@ include <tunables/global>
 }
 ```
 
-Comprobar la sintaxis en tu VM:
+Comprobación de la sintaxis:
 
 ```bash
 sudo apparmor_parser -QT /etc/apparmor.d/usr.sbin.nginx && echo OK
@@ -506,7 +472,7 @@ tail -n 3 /var/log/nginx/apparmor.access.log                                    
 sudo journalctl -k --since "10 min ago" | grep 'apparmor="DENIED"' | grep nginx || echo "Sin denegaciones"
 ```
 
-| Prueba | Resultado esperado |
+| Prueba | Resultado |
 | --- | --- |
 | `systemctl is-active nginx` | `active` |
 | `nginx -t` | `syntax is ok` y `test is successful` |
@@ -516,11 +482,11 @@ sudo journalctl -k --since "10 min ago" | grep 'apparmor="DENIED"' | grep nginx 
 | `access.log` | Las últimas peticiones aparecen escritas |
 | Eventos DENIED en uso normal | `Sin denegaciones` |
 
-> **CAPTURA 9 —** Terminal con el `curl -i` a `/` (200 OK), `reload OK`, `reopen OK` y “Sin denegaciones”.
+**Captura 9.** Terminal con el `curl -i` a `/` (200 OK), `reload OK`, `reopen OK` y “Sin denegaciones”.
 
 
 
-> **CAPTURA 10 —** Navegador de Windows en `http://apparmor.asir.local/` mostrando la web con el perfil en enforce.
+**Captura 10.** Navegador de Windows en `http://apparmor.asir.local/` mostrando la web con el perfil en enforce.
 
 
 
@@ -534,7 +500,7 @@ sudo tail -n 1 /var/log/nginx/apparmor.error.log
 sudo journalctl -k --since "5 min ago" | grep 'apparmor="DENIED"' | grep nginx
 ```
 
-Resultado esperado:
+Resultado:
 
 ```
 HTTP/1.1 403 Forbidden
@@ -546,11 +512,11 @@ apparmor="DENIED" operation="open" class="file" profile="/usr/sbin/nginx" name="
 
 Aunque un atacante consiguiera cambiar la configuración de Nginx o explotar un fallo de *path traversal*, el proceso no podría leer nada fuera de las rutas del perfil, como `/etc/shadow` o `/home`.
 
-> **CAPTURA 11 —** `curl -i` a `/fuera/` con `403 Forbidden` y la línea `apparmor="DENIED"` de `/srv/fuera/index.html`.
+**Captura 11.** `curl -i` a `/fuera/` con `403 Forbidden` y la línea `apparmor="DENIED"` de `/srv/fuera/index.html`.
 
 
 
-### 5.3 Si algo falla
+### 5.3 Vuelta atrás si falta alguna regla
 
 ```bash
 sudo aa-complain /usr/sbin/nginx   # vuelve a modo aprendizaje
